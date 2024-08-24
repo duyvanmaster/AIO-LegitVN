@@ -37,7 +37,7 @@ const std::string compilation_time = (std::string)skCrypt(__TIME__);
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-std::string version = skCrypt("1.0").decrypt(); 
+std::string version = skCrypt("1.0").decrypt();
 
 
 bool progressPrinted = false;
@@ -393,31 +393,42 @@ void DownloadAndExtractRar(const std::string& rarUrl, const std::string& rarFile
 	}
 }
 
-bool SetRegistryValue(const std::string& keyPath, const std::string& valueName, DWORD value) {
+bool SetRegistryValue(const std::string& subKey, const std::string& valueName, DWORD data) {
 	HKEY hKey;
 	LONG result = RegCreateKeyExA(
 		HKEY_LOCAL_MACHINE,
-		keyPath.c_str(),
-		0, NULL, REG_OPTION_NON_VOLATILE,
-		KEY_SET_VALUE, NULL, &hKey, NULL);
+		subKey.c_str(),
+		0,
+		NULL,
+		REG_OPTION_NON_VOLATILE,
+		KEY_SET_VALUE,
+		NULL,
+		&hKey,
+		NULL
+	);
 
-	if (result == ERROR_SUCCESS) {
-		result = RegSetValueExA(hKey, valueName.c_str(), 0, REG_DWORD, reinterpret_cast<const BYTE*>(&value), sizeof(value));
-		RegCloseKey(hKey);
-
-		if (result == ERROR_SUCCESS) {
-			std::cout << "Successfully set registry value for key: " << keyPath << std::endl;
-			return true;
-		}
-		else {
-			std::cerr << "Failed to set registry value for key: " << keyPath << std::endl;
-			return false;
-		}
-	}
-	else {
-		std::cerr << "Failed to open or create registry key: " << keyPath << std::endl;
+	if (result != ERROR_SUCCESS) {
+		std::cerr << "Failed to open or create registry key: " << subKey << std::endl;
 		return false;
 	}
+
+	result = RegSetValueExA(
+		hKey,
+		valueName.c_str(),
+		0,
+		REG_DWORD,
+		reinterpret_cast<const BYTE*>(&data),
+		sizeof(data)
+	);
+
+	RegCloseKey(hKey);
+
+	if (result != ERROR_SUCCESS) {
+		std::cerr << "Failed to set registry value: " << valueName << std::endl;
+		return false;
+	}
+
+	return true;
 }
 
 // Callback function to write downloaded data
@@ -440,7 +451,7 @@ std::string checkVersion() {
 	std::string readBuffer;
 	curl = curl_easy_init();
 	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/duyvanmaster/AIO-LegitVN/master/version.txt");
+		curl_easy_setopt(curl, CURLOPT_URL, "https://github.com/duyvanmaster/AIO-LegitVN/blob/master/x64/Release/version.txt");
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 		res = curl_easy_perform(curl);
@@ -467,7 +478,7 @@ bool updateSoftware() {
 	std::cout << " Update batch path: " << updateBatchPath << std::endl;
 
 	// Tải file phiên bản mới về vị trí tạm thời
-	if (DownloadFileWithProgress("https://raw.githubusercontent.com/duyvanmaster/AIO-LegitVN/master/AIOLegitVN.exe", tempUpdatePath.c_str())) {
+	if (DownloadFileWithProgress("https://raw.githubusercontent.com/duyvanmaster/AIO-LegitVN/master/x64/Release/AIOLegitVN.exe", tempUpdatePath.c_str())) {
 		std::cout << " New version downloaded successfully." << std::endl;
 
 		// Tạo file batch để thực hiện cập nhật
@@ -833,6 +844,34 @@ void FixGPU()
 	}
 }
 
+void HighPriority()
+{
+	std::string paths[] = {
+			"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\Bluestacks.exe\\PerfOptions",
+			"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\BstkSVC.exe\\PerfOptions",
+			"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\HD-Agent.exe\\PerfOptions",
+			"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\HD-Player.exe\\PerfOptions"
+	};
+
+	bool success = true;
+
+	for (const auto& path : paths) {
+		if (!SetRegistryValue(path, "CpuPriorityClass", 3)) {
+			success = false;
+		}
+	}
+
+	if (success) {
+		Plus();
+		std::cout << "Successfully updated high priority Blustacks & Msi process" << std::endl;
+	}
+	else {
+		Plus();
+		std::cerr << "Failed to update some registry keys." << std::endl;
+	}
+}
+
+
 void Clumsy() {
 	const char* directoryPath = "C:\\LegitVN\\Src";
 	CreateDirectoryIfNotExists(directoryPath);
@@ -847,6 +886,83 @@ void Clumsy() {
 	std::cout << "File downloaded successfully. Now running the installer...\n";
 	PrintDownloadPath(openfile);
 	RunExecutable(openfile);
+}
+
+void SetProp() {
+	std::string adbPath;
+	if (isBluestacksRunning(version)) {
+		// Đường dẫn đến adb cho BlueStacks
+		Plus();
+		std::cout << skCrypt("Bluestacks with version: ") << version << std::endl;
+		adbPath = "\"C:\\Program Files\\BlueStacks\\HD-Adb.exe\"";
+	}
+	else if (isMSIAppPlayerRunning(version)) {
+		// Đường dẫn đến adb cho MSI App Player
+		Plus();
+		std::cout << skCrypt("MSI App Player with version: ") << version << std::endl;
+		adbPath = "\"C:\\Program Files\\BlueStacks_msi2\\HD-Adb.exe\"";
+	}
+	else {
+		std::cerr << "Both BlueStacks nor MSI App Player is running." << std::endl;
+		return;
+	}
+
+	std::string command = adbPath + " shell setprop debug.compogition.type mdp";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.gr.gapinterval 0";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.fb.rgb565 1";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.enabletr false"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.gfxemulcompilerfilter speed"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.rg.precision rg_fp_full"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.rg.default-CPU-buffer 262144";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.javafx.anim.fullspeed true"; // Rút ngắn tên thuộc tính
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.javafx.anim.framerate 120"; // Rút ngắn tên thuộc tính
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.disable.hwacc 0"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.qctwa.preservebuf 1"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.MB.running 72";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.MB.inner.running 24";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.app.performance_restricte false"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.rg.max-threads 8"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.rg.min-threads 8"; // Sửa chính tả
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.gr.numframebuffer 0";
+	system(command.c_str());
+
+	command = adbPath + " shell setprop debug.power_management_mode perf_max";
+	system(command.c_str());
+
+	Plus();
+	std::cout << "Performance CPU and GPU settings for the emulator have been successfully." << std::endl;
 }
 
 void menu()
@@ -914,7 +1030,23 @@ void menu()
 	SetConsoleTextAttribute(hConsole, 8);
 	std::cout << skCrypt("]");
 	SetConsoleTextAttribute(hConsole, 7);
+	std::cout << skCrypt(" High Priority for Bluestacks & Msi process");
+	SetConsoleTextAttribute(hConsole, 8);
+	std::cout << skCrypt("\n [");
+	SetConsoleTextAttribute(hConsole, 15);
+	std::cout << skCrypt("9");
+	SetConsoleTextAttribute(hConsole, 8);
+	std::cout << skCrypt("]");
+	SetConsoleTextAttribute(hConsole, 7);
 	std::cout << skCrypt(" Clumsy (Time Stop)");
+	SetConsoleTextAttribute(hConsole, 8);
+	std::cout << skCrypt("\n [");
+	SetConsoleTextAttribute(hConsole, 15);
+	std::cout << skCrypt("10");
+	SetConsoleTextAttribute(hConsole, 8);
+	std::cout << skCrypt("]");
+	SetConsoleTextAttribute(hConsole, 7);
+	std::cout << skCrypt(" Setprop Performance CPU & GPU Emualator");
 
 	SetConsoleTextAttribute(hConsole, 8);
 	std::cout << skCrypt("\n\n [");
@@ -996,7 +1128,25 @@ void menu()
 	case 8:
 	{
 		system("cls");
+		HighPriority();
+		Sleep(3000);
+		system("cls");
+		menu();
+		break;
+	}
+	case 9:
+	{
+		system("cls");
 		Clumsy();
+		Sleep(3000);
+		system("cls");
+		menu();
+		break;
+	}
+	case 10:
+	{
+		system("cls");
+		SetProp();
 		Sleep(3000);
 		system("cls");
 		menu();
@@ -1014,10 +1164,10 @@ int main()
 {
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	system("Color 07");
-	std::string consoleTitle = (std::string)skCrypt("AIO LegitVN v1.6.2 | Built at:  ") + compilation_date + " " + compilation_time;
+	std::string consoleTitle = (std::string)skCrypt("AIO LegitVN v1.6.3 | Built at:  ") + compilation_date + " " + compilation_time;
 	SetConsoleTitleA(consoleTitle.c_str());
 
-	std::string currentVersion = "1.6.2"; // Current version of the application
+	std::string currentVersion = "1.6.3"; // Current version of the application
 	std::string latestVersion = checkVersion(); // Get the latest version from the server
 
 	if (isNewVersionAvailable(currentVersion, latestVersion)) {
