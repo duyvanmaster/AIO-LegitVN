@@ -37,7 +37,7 @@ const std::string compilation_time = (std::string)skCrypt(__TIME__);
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-std::string version = skCrypt("1.0").decrypt();
+std::string version = skCrypt("1.0").decrypt(); // leave alone unless you've changed version on website
 
 
 bool progressPrinted = false;
@@ -99,12 +99,31 @@ bool DirectoryExists(const std::string& dirPath) {
 	return (fileAttr != INVALID_FILE_ATTRIBUTES && (fileAttr & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-// Hàm tạo thư mục nếu chưa tồn tại
+// Hàm tạo từng thư mục một trong đường dẫn
 void CreateDirectoryIfNotExists(const std::string& dirPath) {
-	if (!DirectoryExists(dirPath)) {
-		if (!CreateDirectoryA(dirPath.c_str(), NULL)) {
-			std::cerr << "Failed to create directory: " << dirPath << std::endl;
-			exit(1);
+	std::string path = "";
+	std::vector<std::string> tokens;
+	size_t pos = 0, found;
+
+	// Tách đường dẫn theo dấu '\'
+	while ((found = dirPath.find_first_of("\\/", pos)) != std::string::npos) {
+		tokens.push_back(dirPath.substr(pos, found - pos));
+		pos = found + 1;
+	}
+	tokens.push_back(dirPath.substr(pos));
+
+	// Lần lượt tạo từng phần của đường dẫn
+	for (const auto& part : tokens) {
+		if (part.empty()) continue;
+		path += part + "\\";  // Cộng dồn từng phần vào đường dẫn
+
+		// Kiểm tra và tạo thư mục nếu chưa tồn tại
+		if (!DirectoryExists(path)) {
+			if (!CreateDirectoryA(path.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+				std::cerr << "Failed to create directory: " << path
+					<< " Error code: " << GetLastError() << std::endl;
+				exit(1);
+			}
 		}
 	}
 }

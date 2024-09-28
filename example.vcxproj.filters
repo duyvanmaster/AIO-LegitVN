@@ -16,6 +16,9 @@
     <Filter Include="Header Files\Protection">
       <UniqueIdentifier>{587eab74-13d3-4764-9f32-49b7924744df}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\auth">
+      <UniqueIdentifier>{812a2e53-41d6-4691-99bf-e6fe8d96935d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -26,9 +29,17 @@
     <ClInclude Include="skStr.h">
       <Filter>Header Files\Protection</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Downloads\Services\SourceCode\GamsenseConfig\GamsenseConfig\KeyAuth-CPP-Example-main\KeyAuth-CPP-Example-main\auth.hpp">
+      <Filter>Header Files\auth</Filter>
+    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\..\Downloads\Services\SourceCode\GamsenseConfig\GamsenseConfig\KeyAuth-CPP-Example-main\KeyAuth-CPP-Example-main\library_x64.lib">
+      <Filter>Header Files\auth</Filter>
+    </Library>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -36,7 +47,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\legitvn.ico">
+    <Image Include="legitvn.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
